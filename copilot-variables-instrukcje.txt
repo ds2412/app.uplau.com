@@ -1,0 +1,70 @@
+# GitHub Copilot - Variables (Zmienne) - Instrukcje
+
+## Co to są Variables w Copilot?
+Variables to specjalne znaczniki (@variable) które automatycznie dostarczają kontekst do rozmowy z AI.
+Zamiast opisywać długo co masz na myśli, używasz skrótu i Copilot wie o co chodzi.
+
+## 🔧 Najważniejsze Variables:
+
+### @workspace
+- Co robi: Daje AI dostęp do całego workspace/projektu
+- Kiedy używać: Gdy pytasz o strukturę projektu, organizację plików
+- Przykład: "@workspace jak zorganizować ten projekt React?"
+
+### @file  
+- Co robi: Odnosi się do aktualnie otwartego pliku
+- Kiedy używać: Gdy pytasz o konkretny plik który masz otwarty
+- Przykład: "@file wyjaśnij co robi ta funkcja"
+
+### @selection
+- Co robi: Odnosi się do zaznaczonego fragmentu kodu
+- Kiedy używać: Gdy zaznaczysz kod i chcesz o nim porozmawiać
+- Przykład: "@selection dlaczego ten kod nie działa?"
+
+### @terminal
+- Co robi: Odnosi się do outputu/wyniku z terminala
+- Kiedy używać: Gdy masz błąd w terminalu i chcesz pomoc
+- Przykład: "@terminal co oznacza ten błąd?"
+
+### @problems
+- Co robi: Odnosi się do błędów/ostrzeżeń w kodzie
+- Kiedy używać: Gdy masz czerwone podkreślenia w kodzie
+- Przykład: "@problems pomoż naprawić te błędy"
+
+## 💡 Praktyczne zastosowania:
+
+### Zamiast pisać:
+"Mam błąd w pliku page.tsx w linii 15, gdzie komponenta NextPage zwraca undefined..."
+
+### Napisz:
+"@file @selection co jest nie tak z tym komponentem?"
+
+### Zamiast pisać:
+"W moim projekcie React mam foldery src, public, node_modules i nie wiem jak to zorganizować..."
+
+### Napisz:
+"@workspace jak lepiej zorganizować strukturę tego projektu?"
+
+## 🎯 Dlaczego to ważne dla nauki React/JavaScript:
+
+1. **Szybsza komunikacja** - nie musisz opisywać kontekstu
+2. **Precyzyjne pytania** - AI wie dokładnie o co pytasz  
+3. **Mniej błędów** - AI widzi dokładnie ten sam kod co Ty
+4. **Efektywniejsza nauka** - skupiasz się na problemie, nie na opisywaniu
+
+## 📝 Notatki do zapamiętania:
+
+- Variables działają tylko w Copilot Chat (nie w autocomplete)
+- Można łączyć kilka variables w jednym pytaniu
+- Zawsze zaczynają się od @ (małpa)
+- Są case-sensitive (wielkość liter ma znaczenie)
+
+## 🤝 Specjalne zasady dla tego projektu:
+
+**Komendy w terminalu:** 
+- AI będzie tylko **podrzucać/nakierowywać** na komendy
+- **Ty sam** będziesz je wpisywać w terminalu
+- AI **nie będzie** uruchamiał komend za Ciebie (chyba że poprosisz)
+
+## Data utworzenia: 26.09.2025
+## Kontekst: app.uplau.com - nauka React/Next.js przez praktykę z bratem-mentorem! 😄
