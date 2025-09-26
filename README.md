@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # app.uplau.com - Professional React Web Application
 
 A modern, production-ready React application built with Next.js 15, TypeScript, and Tailwind CSS.
@@ -62,3 +63,6 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+=======
+# app.uplau.com
+>>>>>>> e1b85ca8e30daf9ff54f0eaf4bd6d16a277952d7
