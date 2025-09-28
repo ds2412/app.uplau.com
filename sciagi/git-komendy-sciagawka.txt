@@ -1,0 +1,204 @@
+# Git - Komendy i Opisy (Ściągawka)
+
+## 🚀 Podstawowe komendy Git
+
+### **Konfiguracja Git (jednorazowo)**
+```bash
+git config --global user.name "Twoje Imię"
+git config --global user.email "twoj@email.com"
+```
+**Co to robi:** Ustawia kim jesteś - potrzebne żeby Git wiedział kto robi commity
+
+---
+
+## 📁 Inicjalizacja projektu
+
+### **Rozpocznij nowy projekt Git**
+```bash
+git init
+```
+**Co to robi:** Tworzy ukryty folder `.git` - mówi "ten folder jest teraz projektem Git"
+
+### **Połącz z GitHubem**
+```bash
+git remote add origin https://github.com/username/repo-name.git
+```
+**Co to robi:** Mówi Git gdzie jest Twoje repo online (jak adres do wysyłania listów)
+
+---
+
+## 📦 Robienie commitów (zapisywanie zmian)
+
+### **Sprawdź status projektu**
+```bash
+git status
+```
+**Co to robi:** Pokazuje które pliki się zmieniły, które są gotowe do commit
+
+### **Dodaj pliki do "paczki"**
+```bash
+git add .                    # Dodaj wszystkie pliki
+git add plik.txt            # Dodaj tylko jeden plik
+git add src/                # Dodaj cały folder
+```
+**Co to robi:** Przygotowuje pliki do "zapakowania" - jak wkładanie rzeczy do pudełka
+
+### **Zrób commit (zapakuj zmiany)**
+```bash
+git commit -m "Opis co zrobiłeś"
+```
+**Co to robi:** Robi "zdjęcie" aktualnego stanu + dodaje opis co się zmieniło
+
+### **Szybki commit (add + commit jednocześnie)**
+```bash
+git commit -am "Opis zmian"
+```
+**Co to robi:** Dodaje wszystkie zmienione pliki i robi commit w jednej komendzie
+
+---
+
+## 🌐 Synchronizacja z GitHubem
+
+### **Wyślij zmiany na GitHub**
+```bash
+git push                    # Normalne wysłanie
+git push -u origin main     # Pierwsze wysłanie (ustawia tracking)
+```
+**Co to robi:** Wysyła Twoje commity na GitHub - jak wysyłanie paczki pocztą
+
+### **Pobierz zmiany z GitHuba**
+```bash
+git pull
+```
+**Co to robi:** Ściąga najnowsze zmiany z GitHuba do Twojego komputera
+
+---
+
+## 🌿 Branche (gałęzie)
+
+### **Zobacz wszystkie branche**
+```bash
+git branch                  # Lokalne branche
+git branch -a              # Wszystkie branche (lokalne + remote)
+```
+**Co to robi:** Pokazuje wszystkie "gałęzie" Twojego projektu
+
+### **Stwórz nowy branch**
+```bash
+git branch nazwa-brancha
+git checkout -b nazwa-brancha    # Stwórz + przełącz się od razu
+```
+**Co to robi:** Tworzy nową "gałąź" - jak kopia do eksperymentowania
+
+### **Przełącz się między branchami**
+```bash
+git checkout nazwa-brancha
+git switch nazwa-brancha        # Nowsza komenda
+```
+**Co to robi:** Przechodzi na inną "gałąź" - zmienia pliki na inne wersje
+
+### **Usuń branch**
+```bash
+git branch -d nazwa-brancha     # Bezpieczne usunięcie
+git branch -D nazwa-brancha     # Wymuszne usunięcie
+```
+**Co to robi:** Usuwa "gałąź" której już nie potrzebujesz
+
+---
+
+## 📚 Historia i informacje
+
+### **Zobacz historię commitów**
+```bash
+git log                     # Pełna historia
+git log --oneline          # Krótka wersja (jedna linia na commit)
+git log --graph            # Z graficznym drzewem
+```
+**Co to robi:** Pokazuje wszystkie "zdjęcia" które robiłeś - historię zmian
+
+### **Zobacz różnice w plikach**
+```bash
+git diff                   # Pokaż niezapisane zmiany
+git diff HEAD~1            # Porównaj z poprzednim commitem
+```
+**Co to robi:** Pokazuje co dokładnie się zmieniło w kodzie
+
+### **Zobacz kto co zmieniał**
+```bash
+git blame plik.txt
+```
+**Co to robi:** Pokazuje kto napisał każdą linijkę w pliku (do szukania winnych 😄)
+
+---
+
+## 🔄 Cofanie zmian
+
+### **Cofnij niezapisane zmiany**
+```bash
+git checkout -- plik.txt   # Cofnij zmiany w jednym pliku
+git checkout -- .          # Cofnij wszystkie niezapisane zmiany
+```
+**Co to robi:** Przywraca plik do stanu z ostatniego commita
+
+### **Cofnij commit (ale zostaw zmiany)**
+```bash
+git reset HEAD~1
+```
+**Co to robi:** Usuwa ostatni commit, ale pliki zostają zmienione
+
+### **Cofnij commit + usuń zmiany (OSTROŻNIE!)**
+```bash
+git reset --hard HEAD~1
+```
+**Co to robi:** Usuwa ostatni commit + wszystkie zmiany - nie da się cofnąć!
+
+---
+
+## 🆘 Ratunkowe komendy
+
+### **Zobacz co się dzieje**
+```bash
+git status                 # Status aktualny
+git log --oneline -5       # Ostatnie 5 commitów
+git remote -v              # Gdzie wysyłasz kod
+```
+
+### **Wymuś push (OSTROŻNIE!)**
+```bash
+git push --force
+```
+**Co to robi:** Wymusza wysłanie - używaj tylko jak wiesz co robisz!
+
+### **Skopiuj commit z innego brancha**
+```bash
+git cherry-pick commit-id
+```
+**Co to robi:** Kopiuje jeden konkretny commit do aktualnego brancha
+
+---
+
+## 💡 Przydatne skróty i aliasy
+
+Możesz ustawić skróty:
+```bash
+git config --global alias.st status
+git config --global alias.co checkout  
+git config --global alias.br branch
+git config --global alias.ci commit
+```
+
+Wtedy zamiast `git status` piszesz `git st` 😊
+
+---
+
+## 📝 Dobre praktyki:
+
+✅ **Rób częste, małe commity** - łatwiej się orientować  
+✅ **Pisz opisowe commit messages** - "Fixed login bug" zamiast "fix"  
+✅ **Pull przed push** - zawsze ściągnij zmiany przed wysłaniem  
+✅ **Używaj branchy** - nie rób wszystkiego na main  
+✅ **Sprawdzaj git status** - zawsze wiedz co się dzieje  
+
+**Data utworzenia:** 26.09.2025  
+**Projekt:** app.uplau.com - nauka React z Git  
+**Autor:** ds2412 💻
