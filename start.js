@@ -6,6 +6,7 @@
 
 const { spawn } = require('child_process')
 const path = require('path')
+const fs = require('fs')
 
 const host = process.env.HOST || '127.0.0.1'
 const envPort = Number(process.env.PORT || process.env.PLESK_NODEJS_PORT)
@@ -20,6 +21,26 @@ console.log('Starting Next…', {
   nextBin,
   cwd: __dirname,
 })
+
+// Lightweight diagnostics to verify production build presence
+try {
+  const nextDir = path.join(__dirname, '.next')
+  const buildIdPath = path.join(nextDir, 'BUILD_ID')
+  const hasNext = fs.existsSync(nextDir)
+  const hasBuildId = fs.existsSync(buildIdPath)
+  let buildId = null
+  if (hasBuildId) {
+    try { buildId = fs.readFileSync(buildIdPath, 'utf8').trim() } catch {}
+  }
+  let top = []
+  try { top = fs.readdirSync(nextDir) } catch {}
+  console.log('Build diagnostics:', { nextDir, hasNext, hasBuildId, buildId })
+  if (top && top.length) {
+    console.log('Top-level entries in .next:', top)
+  }
+} catch (e) {
+  console.log('Build diagnostics failed:', e?.message)
+}
 
 const child = spawn(process.execPath, [
   nextBin,
