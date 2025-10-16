@@ -30,6 +30,14 @@ export default function DashboardPage() {
     const [showEditModal, setShowEditModal] = useState<{ open: boolean; link?: any }>({ open: false });
     const [showAnalyticsModal, setShowAnalyticsModal] = useState<{ open: boolean; link?: any; data?: any }>({ open: false });
     
+    // QR Codes section state
+    const [qrCodes, setQrCodes] = useState<any[]>([]);
+    const [creatingQr, setCreatingQr] = useState(false);
+    const [qrMessage, setQrMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [selectedLinkForQr, setSelectedLinkForQr] = useState<string | null>(null);
+    const [quickCreateMode, setQuickCreateMode] = useState<'link' | 'qr'>('link'); // Tryb szybkiego tworzenia
+    const [generatedQrCode, setGeneratedQrCode] = useState<string | null>(null); // Wygenerowany QR kod (base64)
+    
     // Domena dla skróconych linków
     const shortDomain = process.env.NEXT_PUBLIC_SHORT_DOMAIN || 'http://localhost:3000';
 
@@ -648,6 +656,24 @@ export default function DashboardPage() {
         }
     };
 
+    // Funkcja do pobierania QR kodów użytkownika
+    const fetchQrCodes = async () => {
+        if (!user) return;
+        
+        try {
+            const response = await fetch('/api/qr/list');
+            const data = await response.json();
+            
+            if (response.ok) {
+                setQrCodes(data.qrCodes || []);
+            } else {
+                console.error('Błąd pobierania QR kodów:', data.error);
+            }
+        } catch (error) {
+            console.error('Błąd fetchQrCodes:', error);
+        }
+    };
+
     // Funkcja do tworzenia nowego linku
     const handleCreateLink = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -674,6 +700,69 @@ export default function DashboardPage() {
             return;
         }
 
+        // Jeśli tryb QR - najpierw utwórz link, potem QR
+        if (quickCreateMode === 'qr') {
+            setCreatingLink(true);
+            setLinkMessage(null);
+            setGeneratedQrCode(null);
+
+            try {
+                // 1. Utwórz link
+                const linkResponse = await fetch('/api/links/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        originalUrl: linkUrl,
+                        userId: user.id
+                    }),
+                });
+
+                const linkData = await linkResponse.json();
+
+                if (!linkResponse.ok) {
+                    if (linkData.limitReached && linkData.currentPlan === 'free') {
+                        setUpgradeModalData(linkData);
+                        setShowUpgradeModal(true);
+                    } else {
+                        setLinkMessage({ type: 'error', text: linkData.message || linkData.error || 'Nie udało się utworzyć linku' });
+                    }
+                    setCreatingLink(false);
+                    return;
+                }
+
+                // 2. Utwórz QR kod dla tego linka
+                const qrResponse = await fetch('/api/qr/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        linkId: linkData.link.id
+                    }),
+                });
+
+                const qrData = await qrResponse.json();
+
+                if (qrResponse.ok) {
+                    setLinkMessage({ type: 'success', text: '🎉 QR kod utworzony!' });
+                    setGeneratedQrCode(qrData.qrCode.qr_image_data);
+                    setLastShortUrl(qrData.shortUrl);
+                    setLinkUrl('');
+                    fetchLinks();
+                    fetchQrCodes();
+                    fetchMonthlyUsage();
+                } else {
+                    setLinkMessage({ type: 'error', text: qrData.error || 'Nie udało się utworzyć QR kodu' });
+                }
+
+            } catch (error) {
+                console.error('Error creating QR:', error);
+                setLinkMessage({ type: 'error', text: 'Wystąpił błąd podczas tworzenia' });
+            }
+
+            setCreatingLink(false);
+            return;
+        }
+
+        // Tryb normalny - tylko link
         setCreatingLink(true);
         setLinkMessage(null);
 
@@ -770,6 +859,7 @@ export default function DashboardPage() {
             fetchBillingInfo();
             fetchLinks(); // Pobierz też linki
             fetchMonthlyUsage(); // Pobierz miesięczne użycie
+            fetchQrCodes(); // Pobierz QR kody
         }
     }, [user]);
 
@@ -864,10 +954,16 @@ export default function DashboardPage() {
                         <span>🔗</span>
                         <span>Linki</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+                    <button 
+                        onClick={() => setActiveSection('qrcodes')}
+                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg ${
+                            activeSection === 'qrcodes' 
+                                ? 'bg-blue-50 text-blue-700 font-medium' 
+                                : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                    >
                         <span>📱</span>
                         <span>QR Codes</span>
-                        <span className="ml-auto bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">SPRÓBUJ</span>
                     </button>
                     <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
                         <span>📄</span>
@@ -971,11 +1067,35 @@ export default function DashboardPage() {
                             <p className="text-gray-600 mb-4">Możesz stworzyć 3 więcej krótkich linków w tym miesiącu</p>
                             
                             <div className="flex space-x-4 mb-6">
-                                <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setQuickCreateMode('link');
+                                        setLinkMessage(null);
+                                        setGeneratedQrCode(null);
+                                    }}
+                                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                                        quickCreateMode === 'link'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
                                     <span>🔗</span>
                                     <span>Krótki link</span>
                                 </button>
-                                <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setQuickCreateMode('qr');
+                                        setLinkMessage(null);
+                                        setGeneratedQrCode(null);
+                                    }}
+                                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                                        quickCreateMode === 'qr'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
                                     <span>📱</span>
                                     <span>QR Code</span>
                                 </button>
@@ -1011,7 +1131,7 @@ export default function DashboardPage() {
                                     }`}>
                                         <div className="flex flex-col gap-2">
                                             <div className="font-medium">{linkMessage.text}</div>
-                                            {linkMessage.type === 'success' && lastShortUrl && (
+                                            {linkMessage.type === 'success' && quickCreateMode === 'link' && lastShortUrl && (
                                                 <div className="flex items-center gap-2">
                                                     <input
                                                         type="text"
@@ -1039,6 +1159,34 @@ export default function DashboardPage() {
                                                     )}
                                                 </div>
                                             )}
+                                            {linkMessage.type === 'success' && quickCreateMode === 'qr' && generatedQrCode && (
+                                                <div className="flex flex-col items-center gap-3 mt-3">
+                                                    <img 
+                                                        src={generatedQrCode} 
+                                                        alt="Generated QR Code"
+                                                        className="w-48 h-48 border-2 border-green-300 rounded-lg"
+                                                    />
+                                                    <div className="text-sm text-green-700">
+                                                        Link: {lastShortUrl}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <a
+                                                            href={generatedQrCode}
+                                                            download="qr-code.png"
+                                                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                                        >
+                                                            📥 Pobierz QR
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveSection('qrcodes')}
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                                        >
+                                                            Zobacz wszystkie QR
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1048,17 +1196,34 @@ export default function DashboardPage() {
                                     disabled={creatingLink}
                                     className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
-                                    {creatingLink ? 'Tworzę...' : 'Stwórz swój uplau link'}
+                                    {creatingLink 
+                                        ? 'Tworzę...' 
+                                        : quickCreateMode === 'qr' 
+                                            ? '📱 Stwórz QR Code' 
+                                            : '🔗 Stwórz swój uplau link'
+                                    }
                                 </button>
                             </form>
 
                             <p className="text-sm text-gray-500 mt-4">
-                                                                {monthlyUsage ? (
+                                {monthlyUsage ? (
                                     <>
-                                                                                Linków w tym miesiącu: <strong>{monthlyUsage.used} / {(monthlyUsage.isUnlimited || monthlyUsage.limit === 99999) ? '∞ (Bez limitu)' : monthlyUsage.limit}</strong>
-                                                                                {!monthlyUsage.isUnlimited && monthlyUsage.percentage !== null && (
-                                                                                    <span className="ml-2">({monthlyUsage.percentage}%)</span>
-                                                                                )}
+                                        {quickCreateMode === 'link' && (
+                                            <>
+                                                Linków w tym miesiącu: <strong>{monthlyUsage.used} / {(monthlyUsage.isUnlimited || monthlyUsage.limit === 99999) ? '∞ (Bez limitu)' : monthlyUsage.limit}</strong>
+                                                {!monthlyUsage.isUnlimited && monthlyUsage.percentage !== null && (
+                                                    <span className="ml-2">({monthlyUsage.percentage}%)</span>
+                                                )}
+                                            </>
+                                        )}
+                                        {quickCreateMode === 'qr' && (
+                                            <>
+                                                QR kodów w tym miesiącu: <strong>{monthlyUsage.qr_codes_created || 0} / 1</strong>
+                                                {monthlyUsage.qr_codes_created >= 1 && (
+                                                    <span className="ml-2 text-red-600">(Limit osiągnięty)</span>
+                                                )}
+                                            </>
+                                        )}
                                         <br />
                                         <span className="text-xs text-gray-400">
                                             Reset: {monthlyUsage.resetDateFormatted}
@@ -1366,6 +1531,140 @@ export default function DashboardPage() {
                                 })}
                         </div>
                         <div className="text-center text-sm text-gray-500 mt-6">— Dotarłeś do końca listy —</div>
+                    </>
+                )}
+
+                {/* QR CODES SECTION */}
+                {activeSection === 'qrcodes' && (
+                    <>
+                        {/* Header */}
+                        <div className="mb-8">
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                QR Codes 📱
+                            </h1>
+                            <p className="text-gray-600">
+                                Generuj QR kody dla swoich linków
+                            </p>
+                        </div>
+
+                        {/* Usage Stats */}
+                        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Miesięczne użycie QR kodów</h2>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-3xl font-bold text-blue-600">
+                                        {monthlyUsage?.qr_codes_created || 0}
+                                    </span>
+                                    <span className="text-gray-500 ml-2">/ 1 QR kodów</span>
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Reset: {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('pl-PL')}
+                                </div>
+                            </div>
+                            <div className="mt-4 bg-gray-100 rounded-full h-2">
+                                <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${Math.min((monthlyUsage?.qr_codes_created || 0) / 1 * 100, 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* QR Codes List */}
+                        <div className="space-y-4">
+                            {qrCodes.length === 0 && (
+                                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                                    <span className="text-6xl mb-4 block">📱</span>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                                        Brak QR kodów
+                                    </h3>
+                                    <p className="text-gray-600 mb-4">
+                                        Stwórz swój pierwszy QR kod w zakładce "Linki"
+                                    </p>
+                                    <button
+                                        onClick={() => setActiveSection('links')}
+                                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        Przejdź do Linków
+                                    </button>
+                                </div>
+                            )}
+
+                            {qrCodes.map((qr) => (
+                                <div key={qr.id} className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                    <div className="flex items-start justify-between">
+                                        {/* QR Image */}
+                                        <div className="flex-shrink-0 mr-6">
+                                            <img 
+                                                src={qr.qr_image_data} 
+                                                alt="QR Code"
+                                                className="w-32 h-32 border border-gray-200 rounded"
+                                            />
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                                {shortDomain}/{qr.links?.short_code}
+                                            </h3>
+                                            <p className="text-sm text-gray-600 mb-2">
+                                                → {qr.links?.original_url}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Utworzono: {new Date(qr.created_at).toLocaleString('pl-PL')}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Kliknięcia: {qr.links?.clicks || 0}
+                                            </p>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex flex-col space-y-2">
+                                            <a
+                                                href={qr.qr_image_data}
+                                                download={`qr-${qr.links?.short_code}.png`}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm text-center"
+                                            >
+                                                📥 Pobierz
+                                            </a>
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm('Czy na pewno chcesz usunąć ten QR kod?')) return;
+                                                    
+                                                    try {
+                                                        const response = await fetch(`/api/qr/list?id=${qr.id}`, {
+                                                            method: 'DELETE'
+                                                        });
+                                                        
+                                                        if (response.ok) {
+                                                            setQrMessage({ type: 'success', text: 'QR kod usunięty!' });
+                                                            fetchQrCodes();
+                                                            fetchMonthlyUsage();
+                                                        } else {
+                                                            const data = await response.json();
+                                                            setQrMessage({ type: 'error', text: data.error });
+                                                        }
+                                                    } catch (error) {
+                                                        setQrMessage({ type: 'error', text: 'Błąd usuwania QR kodu' });
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                                            >
+                                                🗑️ Usuń
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Message */}
+                        {qrMessage && (
+                            <div className={`mt-4 p-4 rounded-lg ${
+                                qrMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                            }`}>
+                                {qrMessage.text}
+                            </div>
+                        )}
                     </>
                 )}
 
