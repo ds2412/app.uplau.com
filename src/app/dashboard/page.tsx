@@ -35,6 +35,49 @@ export default function DashboardPage() {
 
     useEffect(() => {
         console.log('🔍 DASHBOARD useEffect - sprawdzam URL:', window.location.href);
+        
+        // 🔑 PARSUJ HASH z OAuth redirect NAJPIERW (zanim cokolwiek innego!)
+        const parseOAuthHash = async () => {
+            const hash = window.location.hash;
+            console.log('🔍 Hash z URL:', hash);
+            
+            if (hash && hash.includes('access_token')) {
+                console.log('✅ Znalazłem OAuth hash - parsuje tokeny RĘCZNIE...');
+                
+                try {
+                    // RĘCZNE parsowanie hasha (Supabase 2.x NIE robi tego automatycznie!)
+                    const hashParams = new URLSearchParams(hash.substring(1)); // Usuń # z początku
+                    const access_token = hashParams.get('access_token');
+                    const refresh_token = hashParams.get('refresh_token');
+                    
+                    if (access_token && refresh_token) {
+                        console.log('🔑 Mam tokeny z hasha - zapisuje przez setSession()...');
+                        
+                        // Użyj setSession() żeby zapisać tokeny
+                        const { data, error } = await supabase.auth.setSession({
+                            access_token,
+                            refresh_token
+                        });
+                        
+                        if (error) {
+                            console.error('❌ Błąd zapisywania sesji:', error);
+                            return false;
+                        }
+                        
+                        console.log('✅ Sesja ustanowiona z OAuth!', data.session?.user?.email);
+                        // Wyczyść hash z URL (estetycznie)
+                        window.history.replaceState({}, '', '/dashboard');
+                        return true; // Sukces!
+                    } else {
+                        console.error('❌ Brak access_token lub refresh_token w hashu');
+                    }
+                } catch (err) {
+                    console.error('❌ Exception podczas parsowania hasha:', err);
+                }
+            }
+            return false;
+        };
+        
         // Jeśli wróciliśmy ze Stripe przez success_url=/dashboard?payment_success=true
         try {
             const params = new URLSearchParams(window.location.search);
@@ -82,11 +125,17 @@ export default function DashboardPage() {
             }
         };
         
-        restoreSession().then(() => {
-            // Po przywróceniu sesji sprawdź usera
+        // GŁÓWNY FLOW:
+        parseOAuthHash().then((wasOAuth) => {
+            if (!wasOAuth) {
+                // Nie było OAuth - spróbuj przywrócić sesję z Stripe
+                return restoreSession();
+            }
+        }).then(() => {
+            // Po wszystkim - sprawdź usera
             setTimeout(() => {
                 checkUserAndSubscription();
-            }, 1000);
+            }, 500);
         });
         
         // 🧹 CACHE będzie sprawdzany AFTER pobrania usera, żeby użyć user_id jako klucza
@@ -129,8 +178,9 @@ export default function DashboardPage() {
 
     const checkUserAndSubscription = async () => {
         try {
-            // Sprawdź czy user jest zalogowany
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            // 🔑 UŻYWAMY getSession() zamiast getUser() - parsuje hash z OAuth redirect!
+            const { data: { session }, error: userError } = await supabase.auth.getSession();
+            const user = session?.user || null;
             
             console.log('Dashboard - sprawdzam usera:', user, userError);
             
