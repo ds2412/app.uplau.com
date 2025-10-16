@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-08-27.basil',
@@ -18,11 +18,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Pobierz subscription z Supabase
-    const { data: subscription, error } = await supabase
+    // Pobierz NAJNOWSZĄ subskrypcję z Supabase (użyj admin client, aby ominąć RLS)
+    const { data: subscription, error } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_customer_id, stripe_subscription_id, plan_id, status, billing_cycle')
+      .select('stripe_customer_id, stripe_subscription_id, plan_id, status, billing_cycle, created_at')
       .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single()
 
     if (error || !subscription?.stripe_customer_id) {
@@ -59,9 +61,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      plan: subscription.plan_id,
-      status: subscription.status,
-      billing_cycle: subscription.billing_cycle,
+      plan: (subscription.plan_id || 'free').toLowerCase(),
+      status: subscription.status || 'active',
+      billing_cycle: subscription.billing_cycle || 'monthly',
       payment_method: paymentMethod
     })
 

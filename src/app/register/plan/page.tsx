@@ -22,7 +22,7 @@ export default function PlanSelectionPage() {
                     .from('subscriptions')
                     .select('*')
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (subscription && subscription.status === 'active') {
                     // Ma aktywną subskrypcję - redirect do dashboard
@@ -129,17 +129,10 @@ export default function PlanSelectionPage() {
 
                 const data = await response.json();
                 
-                if (response.ok && (data.checkoutUrl || data.checkout_url)) {
-                    const checkoutUrl = data.checkoutUrl || data.checkout_url;
+                if (response.ok && (data.checkoutUrl || data.checkout_url || data.url)) {
+                    const checkoutUrl = data.checkoutUrl || data.checkout_url || data.url;
                     console.log('🚀 PLAN: Przekierowuję do Stripe:', checkoutUrl);
-                    
-                    // ZAPISZ TIMESTAMP PRÓBY PŁATNOŚCI I WYBRANY PLAN
-                    localStorage.setItem('lastPaymentAttempt', new Date().getTime().toString());
-                    localStorage.setItem('selectedPlan', selectedPlan);
-                    localStorage.setItem('selectedBillingCycle', billingCycle);
-                    console.log('💾 Zapisuję timestamp próby płatności:', new Date().getTime());
-                    console.log('💾 Zapisuję wybrany plan:', selectedPlan, billingCycle);
-                    
+                    // Przekierowanie bez lokalnych hacków – status zsynchronizuje webhook
                     // Pokaż komunikat o przekierowaniu i przekieruj
                     setSuccessMessage('Przekierowuję do płatności...');
                     setShowSuccess(true);

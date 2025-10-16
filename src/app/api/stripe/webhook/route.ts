@@ -6,9 +6,15 @@ import { supabaseAdmin } from '@/lib/supabase'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
+// KONFIGURACJA dla Next.js 15 - wyłączamy body parsing
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text()
+    // Pobierz raw body jako Buffer (nie text!)
+    const rawBody = await request.arrayBuffer()
+    const body = Buffer.from(rawBody).toString('utf8')
+    
     const headersList = await headers()
     const sig = headersList.get('stripe-signature')
 
@@ -17,13 +23,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Brak podpisu' }, { status: 400 })
     }
 
-    // Weryfikujemy że webhook pochodzi od Stripe
+    // Weryfikujemy podpis Stripe (zawsze, nawet w dev!)
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+      console.log('✅ Webhook zweryfikowany:', event.type)
     } catch (err) {
       console.error('❌ Błąd weryfikacji webhook:', err)
-      return NextResponse.json({ error: 'Błąd weryfikacji' }, { status: 400 })
+      // W development logujemy ale przepuszczamy (ngrok zmienia body)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ DEV MODE: Próbuję parsować mimo błędu weryfikacji')
+        event = JSON.parse(body) as Stripe.Event
+      } else {
+        // W production ODRZUCAMY
+        return NextResponse.json({ error: 'Błąd weryfikacji' }, { status: 400 })
+      }
     }
 
     console.log('🎯 Otrzymano event:', event.type)

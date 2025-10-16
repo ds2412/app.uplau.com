@@ -1,15 +1,103 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function LoginPage() { //export default function 
+export default function LoginPage() {
+    // Pokaż banner po powrocie z płatności (ustawiane po montażu, by uniknąć błędu hydracji)
+    const [fromStripe, setFromStripe] = useState(false);
+    
+    useEffect(() => {
+            const checkSession = async () => {
+                const { data: { user }, error } = await supabase.auth.getUser();
+
+                // Jeśli Supabase zgłasza, że user z JWT nie istnieje → wyczyść sesję
+                const errMsg = (error as any)?.message || '';
+                if (errMsg.includes('User from sub claim in JWT does not exist')) {
+                    try { await supabase.auth.signOut(); } catch {}
+                    try { sessionStorage.clear(); } catch {}
+                    try { localStorage.clear(); } catch {}
+                }
+
+                if (user) {
+                    window.location.href = '/dashboard';
+                    return;
+                }
+
+                // Jeśli nie ma usera, spróbuj automatycznie przywrócić sesję po Stripe
+                try {
+                    const accessToken = sessionStorage.getItem('payment_access_token');
+                    const refreshToken = sessionStorage.getItem('payment_refresh_token');
+                    if (accessToken && refreshToken) {
+                        const { data: setData, error: setErr } = await supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken
+                        });
+
+                        // Wyczyść zapisane tokeny niezależnie od wyniku
+                        sessionStorage.removeItem('payment_access_token');
+                        sessionStorage.removeItem('payment_refresh_token');
+
+                        if (!setErr) {
+                            // Zweryfikuj i przekieruj
+                            const { data: { user: restoredUser } } = await supabase.auth.getUser();
+                            if (restoredUser) {
+                                window.location.href = '/dashboard';
+                                return;
+                            }
+                        }
+                    }
+                } catch {}
+            };
+            checkSession();
+    }, []);
+
+    useEffect(() => {
+        // Odczyt parametrów URL tylko po montażu (na kliencie)
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const flag = params.get('from') === 'stripe' || params.get('payment_success') === 'true';
+            setFromStripe(!!flag);
+        } catch {}
+    }, []);
+
+    const checkIfAlreadyLoggedIn = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+            console.log('User już zalogowany, sprawdzam czy to powrót ze Stripe...');
+            
+            // Sprawdź czy mamy zapisane parametry Stripe
+            const stripeSessionId = localStorage.getItem('stripe_session_id');
+            const stripeUserId = localStorage.getItem('stripe_user_id');
+            
+            if (stripeSessionId) {
+                console.log('✅ Znalazłem zapisaną sesję Stripe, przekierowuję na dashboard z parametrami...');
+                
+                // Wyczyść localStorage
+                localStorage.removeItem('stripe_session_id');
+                localStorage.removeItem('stripe_user_id');
+                
+                // Przekieruj z parametrami
+                window.location.href = `/dashboard?session_id=${stripeSessionId}${stripeUserId ? `&user_id=${stripeUserId}` : ''}`;
+            } else {
+                // Normalny redirect bez Stripe
+                console.log('Przekierowuję do dashboardu...');
+                window.location.href = '/dashboard';
+            }
+        }
+    };
 
     const handleGoogleLogin = async () => {
         try {
+            // RELATYWNY URL - Supabase użyje Site URL z ustawień
+            console.log('🔍 DEBUG OAuth redirectTo: /api/auth/callback (relative)');
+            
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/dashboard`
+                    redirectTo: '/api/auth/callback',
+                    queryParams: { prompt: 'select_account', hl: 'pl' }
                 }
             });
 
@@ -75,6 +163,13 @@ export default function LoginPage() { //export default function
                     </div>
                 </div>
                 
+                {/* Banner po powrocie z płatności */}
+                {fromStripe && (
+                    <div className="mx-6 mt-24 mb-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-900 px-4 py-3">
+                        Zaloguj się ponownie, aby dokończyć powrót po płatności.
+                    </div>
+                )}
+
                 {/* Formularz wyśrodkowany */}
                 <div className="flex-1 flex items-center justify-center px-6 sm:px-8 lg:px-16 py-12">
                     {/* Główna zawartość formularza */}

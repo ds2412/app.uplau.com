@@ -1,3 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+.turbo/
+out/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files (keep secrets out of git)
+.env*
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+
+# Local deploy helpers (do not commit secrets)
+deploy-to-vps.ps1
+check-vps-env.sh
+vps-check.sh
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

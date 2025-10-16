@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-08-27.basil',
@@ -17,14 +17,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('🔍 Customer Portal - szukam subscription dla userId:', userId)
+
     // Pobierz subscription z Supabase żeby znaleźć Stripe customer ID
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_subscription_id, plan_id, status')
       .eq('user_id', userId)
       .single()
 
+    console.log('📊 Znaleziono subscription:', subscription)
+    console.log('❌ Błąd (jeśli był):', error)
+
     if (error || !subscription?.stripe_customer_id) {
+      console.error('⚠️ Brak stripe_customer_id dla userId:', userId)
       return NextResponse.json(
         { error: 'Nie znaleziono subskrypcji użytkownika' },
         { status: 404 }
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Stwórz Stripe Customer Portal Session
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
-      return_url: returnUrl || process.env.NEXT_PUBLIC_BASE_URL + '/dashboard',
+      return_url: returnUrl || (process.env.APP_URL || process.env.NEXT_PUBLIC_BASE_URL) + '/dashboard',
     })
 
     console.log('Customer Portal Session utworzona:', session.id)

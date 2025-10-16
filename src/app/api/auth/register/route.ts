@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists (Supabase will handle this, but we want custom message)
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-    const userExists = existingUser.users.some(user => user.email === email);
+    const userExists = existingUser.users.some((user: any) => user.email === email);
     
     if (userExists) {
       return NextResponse.json(

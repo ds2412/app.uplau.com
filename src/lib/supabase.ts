@@ -35,6 +35,32 @@ export interface Link {
   user_id: string
   original_url: string
   short_code: string
+  title?: string
   clicks: number
   created_at: string
+  updated_at: string
+}
+
+export interface LinkClick {
+  id: string
+  link_id: string
+  clicked_at: string
+  country?: string
+  city?: string
+  device_type?: string
+  browser?: string
+  os?: string
+  referrer?: string
+  ip_address?: string
+}
+
+export interface MonthlyUsage {
+  id: string
+  user_id: string
+  year: number
+  month: number
+  links_created: number
+  total_clicks: number
+  created_at: string
+  updated_at: string
 }

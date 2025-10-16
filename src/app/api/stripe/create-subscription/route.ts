@@ -6,12 +6,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
-    const { planId, billingCycle, userId, userEmail } = await request.json()
+    const { planId, billingCycle = 'monthly', userId, userEmail } = await request.json()
 
     // Validate input
-    if (!planId || !billingCycle || !userId || !userEmail) {
+    if (!planId || !userId || !userEmail) {
       return NextResponse.json(
-        { error: 'Brakuje wymaganych danych' },
+        { error: 'Brakuje wymaganych danych (planId, userId, userEmail)' },
         { status: 400 }
       )
     }
@@ -76,8 +76,26 @@ export async function POST(request: NextRequest) {
       })
     }
 
+  // Resolve base app URL for redirects with robust logic:
+  // 1) Prefer APP_URL (explicit env) when provided
+  // 2) Then try X-Forwarded headers (when behind ngrok/proxy)
+  // 3) Fallback to request.nextUrl.origin
+  function resolveAppUrl(req: NextRequest): string {
+    const envUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
+    if (envUrl) return envUrl.replace(/\/$/, '')
+
+    const xfProto = req.headers.get('x-forwarded-proto') || req.headers.get('x-forwarded-protocol')
+    const xfHost = req.headers.get('x-forwarded-host') || req.headers.get('host')
+    if (xfProto && xfHost) {
+      return `${xfProto}://${xfHost}`.replace(/\/$/, '')
+    }
+    return req.nextUrl.origin
+  }
+
+  const appUrl = resolveAppUrl(request)
+
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+  const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
       line_items: [
@@ -87,8 +105,9 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      success_url: `${request.nextUrl.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.nextUrl.origin}/register/payment?canceled=true`,
+  // Po opłaceniu wracamy na dashboard (obsługa przywrócenia sesji jest w dashboard/login)
+  success_url: `${appUrl}/dashboard?from=stripe&payment_success=true`,
+      cancel_url: `${appUrl}/upgrade?canceled=true`,
       metadata: {
         supabase_user_id: userId,
         plan_id: planId,
